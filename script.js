@@ -1,12 +1,11 @@
 /* Interactive E-Commerce Product Showcase
-   Features:
-   - product grid, category tabs, search, filters
-   - quick view modal (Add to cart, buy now)
-   - cart drawer with localStorage persistence
-   - checkout simulation (form validation & order summary)
+   Extended version:
+   - layout modes: grid, list, masonry
+   - more product data & categories
+   - preserves all previous features (quick view, cart localStorage, checkout)
 */
 
-/* ---------- Data ---------- */
+/* ---------- Data (expanded) ---------- */
 const PRODUCTS = [
   {
     id: 'p1',
@@ -49,7 +48,7 @@ const PRODUCTS = [
     title: 'Canvas Tote Bag',
     price: 22.00,
     category: 'accessory',
-    tags: ['sale','popular'],
+    tags: ['sale','popular','eco'],
     desc: 'Durable canvas tote with interior pocket — eco-friendly and stylish.',
     img: 'https://images.unsplash.com/photo-1520975919838-8f6b5b1fb46b?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=c1b1ce3f2e7a2b6f2dfe7a6b9a18e1f6'
   },
@@ -61,6 +60,42 @@ const PRODUCTS = [
     tags: ['popular','sale'],
     desc: 'Adjustable aluminum stand for phones & small tablets — clean desk essential.',
     img: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=a8d6a6a8f8f6f7d9bfcdd2e7b2f2f9e3'
+  },
+  {
+    id: 'p7',
+    title: 'Trail Running Shoes',
+    price: 89.99,
+    category: 'fitness',
+    tags: ['new','popular'],
+    desc: 'Lightweight trail shoes with grippy sole and breathable upper — built for long runs.',
+    img: 'https://images.unsplash.com/photo-1528701800489-476c8b6a9aa6?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=1e1bfcf0aa6ef4e5b9fb2b1d2f5c9e6a'
+  },
+  {
+    id: 'p8',
+    title: 'Camping Hammock',
+    price: 39.50,
+    category: 'outdoor',
+    tags: ['sale','eco'],
+    desc: 'Compact camping hammock with quick-attach carabiners, fits two people.',
+    img: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=7172c8e9f1d2a3b8c1c2a3d8f1a2b5c6'
+  },
+  {
+    id: 'p9',
+    title: 'Insulated Water Bottle',
+    price: 27.00,
+    category: 'fitness',
+    tags: ['popular','eco'],
+    desc: 'Vacuum-insulated bottle that keeps drinks cold for 24h and hot for 12h.',
+    img: 'https://images.unsplash.com/photo-1526401485004-8ddb4d0d3f0b?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=fc9d4d2b1e8f7c3b2a6f8d3e7b1a2c4d'
+  },
+  {
+    id: 'p10',
+    title: 'Wireless Charger Pad',
+    price: 29.00,
+    category: 'tech',
+    tags: ['new'],
+    desc: 'Thin Qi-certified wireless charger for fast charging compatible phones.',
+    img: 'https://images.unsplash.com/photo-1545239351-1141bd82e8a6?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=3b2f2e4d4c6b9a1f2f3e4b5c6a7d8e9f'
   }
 ];
 
@@ -70,10 +105,11 @@ let state = {
   filter: {
     category: 'all',
     search: '',
-    maxPrice: 300,
+    maxPrice: 1000,
     tags: new Set()
   },
   sort: 'featured',
+  layout: 'grid', // grid | list | masonry
   cart: loadCart() // {productId: qty}
 };
 
@@ -106,25 +142,26 @@ const el = {
   qvAdd: document.getElementById('qvAdd'),
   qvCheckout: document.getElementById('qvCheckout'),
   closeQuick: document.getElementById('closeQuick'),
-  cartBtnOpen: document.getElementById('cartBtn'),
   checkoutModal: document.getElementById('checkoutModal'),
   checkoutForm: document.getElementById('checkoutForm'),
   orderPreview: document.getElementById('orderPreview'),
   paySim: document.getElementById('paySim'),
   cancelCheckout: document.getElementById('cancelCheckout'),
   toast: document.getElementById('toast'),
-  closeCart: document.getElementById('closeCart')
+  closeCart: document.getElementById('closeCart'),
+  layoutBtns: Array.from(document.querySelectorAll('.layout-btn'))
 };
 
 /* ---------- Init ---------- */
 function init(){
   attachListeners();
+  el.priceRange.max = Math.ceil(Math.max(...PRODUCTS.map(p=>p.price))*1.2);
+  state.filter.maxPrice = el.priceRange.max;
+  el.priceRange.value = state.filter.maxPrice;
+  el.priceVal.textContent = formatPrice(state.filter.maxPrice);
   renderProducts();
   updateCartUI();
   renderCartList();
-  el.priceRange.max = Math.ceil(Math.max(...PRODUCTS.map(p=>p.price))*1.2);
-  el.priceRange.value = state.filter.maxPrice;
-  el.priceVal.textContent = formatPrice(state.filter.maxPrice);
 }
 init();
 
@@ -136,7 +173,6 @@ function renderProducts(){
       if(p.price > state.filter.maxPrice) return false;
       if(state.filter.search && !(`${p.title} ${p.desc}`.toLowerCase().includes(state.filter.search.toLowerCase()))) return false;
       if(state.filter.tags.size > 0){
-        // must include all selected tags? we'll show any (OR) selected for better results
         const any = Array.from(state.filter.tags).some(t => p.tags.includes(t));
         if(!any) return false;
       }
@@ -153,6 +189,9 @@ function renderProducts(){
     }
   });
 
+  el.productsGrid.classList.remove('grid','list','masonry');
+  el.productsGrid.classList.add(state.layout);
+
   el.productsGrid.innerHTML = '';
   if(sorted.length === 0){
     el.emptyState.hidden = false;
@@ -164,22 +203,51 @@ function renderProducts(){
   for(const p of sorted){
     const card = document.createElement('article');
     card.className = 'product-card';
-    card.innerHTML = `
-      <div class="product-media" data-id="${p.id}">
-        <img loading="lazy" src="${p.img}" alt="${escapeHtml(p.title)}" />
-      </div>
-      <div class="product-body">
-        <h3 class="product-title">${escapeHtml(p.title)}</h3>
-        <p class="product-sub">${escapeHtml(p.desc)}</p>
-        <div class="price-row">
-          <div class="price">${formatPrice(p.price)}</div>
-          <div class="pill">${escapeHtml(p.category)}</div>
+    // template varies by layout (list has image on left, masonry uses normal card)
+    if(state.layout === 'list'){
+      card.innerHTML = `
+        <div class="product-media" data-id="${p.id}">
+          <img loading="lazy" src="${p.img}" alt="${escapeHtml(p.title)}" />
         </div>
-      </div>
-    `;
-    // image or body click => quick view
-    card.querySelector('.product-media').addEventListener('click', ()=>openQuickView(p.id));
-    card.querySelector('.product-title').addEventListener('click', ()=>openQuickView(p.id));
+        <div class="product-body">
+          <h3 class="product-title">${escapeHtml(p.title)}</h3>
+          <p class="product-sub">${escapeHtml(p.desc)}</p>
+          <div class="price-row">
+            <div class="price">${formatPrice(p.price)}</div>
+            <div class="pill">${escapeHtml(p.category)}</div>
+          </div>
+          <div style="margin-top:8px">
+            <button class="btn small-quick" data-id="${p.id}">Quick view</button>
+            <button class="btn primary add-now" data-id="${p.id}">Add</button>
+          </div>
+        </div>
+      `;
+    } else {
+      // grid / masonry
+      card.innerHTML = `
+        <div class="product-media" data-id="${p.id}">
+          <img loading="lazy" src="${p.img}" alt="${escapeHtml(p.title)}" />
+        </div>
+        <div class="product-body">
+          <h3 class="product-title">${escapeHtml(p.title)}</h3>
+          <p class="product-sub">${escapeHtml(p.desc)}</p>
+          <div class="price-row">
+            <div class="price">${formatPrice(p.price)}</div>
+            <div class="pill">${escapeHtml(p.category)}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // attach events
+    if(state.layout === 'list'){
+      card.querySelector('.small-quick').addEventListener('click', ()=>openQuickView(p.id));
+      card.querySelector('.add-now').addEventListener('click', ()=>addToCart(p.id,1));
+    } else {
+      card.querySelector('.product-media').addEventListener('click', ()=>openQuickView(p.id));
+      card.querySelector('.product-title').addEventListener('click', ()=>openQuickView(p.id));
+    }
+
     el.productsGrid.appendChild(card);
   }
 }
@@ -327,17 +395,13 @@ function renderCartList(){
 /* ---------- Checkout Simulation ---------- */
 function openCart(){
   el.cartDrawer.setAttribute('aria-hidden','false');
-  el.cartDrawer.setAttribute('aria-hidden','false');
   el.cartDrawer.style.transition = 'transform .28s';
-  el.cartDrawer.setAttribute('aria-hidden','false');
 }
-
 function closeCart(){
   el.cartDrawer.setAttribute('aria-hidden','true');
 }
 
 function openCheckout(){
-  // populate orderPreview
   el.orderPreview.innerHTML = '';
   if(Object.keys(state.cart).length === 0){
     showToast('Your cart is empty');
@@ -370,11 +434,9 @@ function closeCheckout(){
   document.body.style.overflow = '';
 }
 
-/* simulate payment */
 function simulatePayment(){
   const form = el.checkoutForm;
   const data = new FormData(form);
-  // simple validity
   const name = data.get('name')?.trim();
   const email = data.get('email')?.trim();
   const address = data.get('address')?.trim();
@@ -385,9 +447,7 @@ function simulatePayment(){
     return;
   }
 
-  // simulate order id
   const orderId = 'ORD-' + Date.now().toString(36).slice(-8).toUpperCase();
-  // clear cart
   state.cart = {};
   saveCart();
   renderCartList();
@@ -494,8 +554,19 @@ function attachListeners(){
     }
   });
 
-  // enhance: click product image to open quick view
-  el.productsGrid.addEventListener('click', (e)=>{});
+  // layout buttons
+  el.layoutBtns.forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      el.layoutBtns.forEach(b=>{
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed','false');
+      });
+      e.currentTarget.classList.add('active');
+      e.currentTarget.setAttribute('aria-pressed','true');
+      state.layout = e.currentTarget.dataset.layout;
+      renderProducts();
+    });
+  });
 }
 
 /* ---------- Utilities ---------- */
@@ -514,12 +585,6 @@ function showToast(msg, timeout=2200){
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>{ el.toast.hidden = true; }, timeout);
 }
-
-/* ---------- Demo glue: clicking product opens quick view when clicking image/title (wired earlier) ---------- */
-/* This is intentionally minimal — we already wired click handlers during render */
-
-/* ---------- Initial setup continued ---------- */
-init();
 
 /* ---------- Expose some helpers for console (dev) ---------- */
 window.__portfolio = {

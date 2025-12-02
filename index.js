@@ -1,1 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Interactive E-Commerce Product Showcase — Portfolio</title>
+  <meta name="description" content="Interactive E-Commerce product showcase demo — product grid, quick view, add-to-cart, checkout simulation." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand" aria-hidden="true">
+        <strong>SadatShop</strong>
+        <span class="tagline">Interactive E-Commerce Showcase</span>
+      </div>
 
+      <div class="controls">
+        <input id="searchInput" class="search" type="search" placeholder="Search products..." aria-label="Search products" />
+        <button id="cartBtn" class="icon-btn" aria-label="Open cart">
+          🛒 <span id="cartCount" class="badge">0</span>
+        </button>
+      </div>
+    </div>
+
+    <nav class="category-nav container" aria-label="Product categories">
+      <button class="category active" data-category="all">All</button>
+      <button class="category" data-category="clothing">Clothing</button>
+      <button class="category" data-category="tech">Tech</button>
+      <button class="category" data-category="home">Home</button>
+      <button class="category" data-category="accessory">Accessories</button>
+    </nav>
+  </header>
+
+  <main class="container main-grid">
+    <aside class="sidebar">
+      <section class="filter-card">
+        <h3>Filters</h3>
+        <label class="filter-row">
+          <span>Price</span>
+          <input id="priceRange" type="range" min="0" max="300" value="300" />
+          <small>Up to <span id="priceVal">$300</span></small>
+        </label>
+
+        <div class="filter-row">
+          <label><input type="checkbox" class="tag-filter" value="new" /> New</label>
+          <label><input type="checkbox" class="tag-filter" value="popular" /> Popular</label>
+          <label><input type="checkbox" class="tag-filter" value="sale" /> Sale</label>
+        </div>
+
+        <button id="clearFilters" class="btn">Clear Filters</button>
+      </section>
+
+      <section class="about-card">
+        <h3>Project Details</h3>
+        <p>This demo shows e-commerce UI skills: filtering, modals, cart persistence, checkout flow, animations, and responsive design — ideal for a portfolio interview showcase.</p>
+        <ul>
+          <li>Static front-end only (no backend)</li>
+          <li>Cart stored in <code>localStorage</code></li>
+          <li>Replace images & data to demo your own products</li>
+        </ul>
+      </section>
+    </aside>
+
+    <section class="products-area" aria-live="polite">
+      <div class="toolbar">
+        <div class="sort-row">
+          <label>Sort:
+            <select id="sortSelect">
+              <option value="featured">Featured</option>
+              <option value="price-asc">Price — low to high</option>
+              <option value="price-desc">Price — high to low</option>
+              <option value="name-asc">Name A→Z</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div id="productsGrid" class="products-grid">
+        <!-- JS renders products here -->
+      </div>
+
+      <div id="emptyState" class="empty-state" hidden>
+        <p>No products match your filters. Try clearing filters.</p>
+        <button id="resetSearch" class="btn">Reset</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Quick View Modal -->
+  <div id="quickView" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-panel">
+      <button class="modal-close" id="closeQuick">✕</button>
+      <div class="modal-body">
+        <img id="qvImage" alt="" />
+        <div class="qv-details">
+          <h2 id="qvTitle"></h2>
+          <p id="qvDesc"></p>
+          <div class="price-row">
+            <span id="qvPrice" class="price"></span>
+            <span id="qvTag" class="pill"></span>
+          </div>
+
+          <label>
+            Quantity:
+            <input id="qvQty" type="number" min="1" value="1" />
+          </label>
+
+          <div class="qv-actions">
+            <button id="qvAdd" class="btn primary">Add to cart</button>
+            <button id="qvCheckout" class="btn">Buy now</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cart Drawer -->
+  <aside id="cartDrawer" class="cart-drawer" aria-hidden="true">
+    <div class="cart-header">
+      <h3>Cart</h3>
+      <button id="closeCart" class="modal-close" aria-label="Close cart">✕</button>
+    </div>
+    <div id="cartList" class="cart-list">
+      <!-- items -->
+    </div>
+    <div class="cart-footer">
+      <div class="cart-summary">
+        <div>Subtotal</div>
+        <div id="subtotal">$0.00</div>
+      </div>
+      <div class="cart-actions">
+        <button id="clearCart" class="btn">Clear</button>
+        <button id="checkoutBtn" class="btn primary">Checkout</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Checkout Modal -->
+  <div id="checkoutModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-panel small">
+      <button class="modal-close" id="closeCheckout">✕</button>
+      <div class="modal-body">
+        <h2>Checkout — Simulation</h2>
+        <form id="checkoutForm" novalidate>
+          <label>Full name <input name="name" required /></label>
+          <label>Email <input name="email" type="email" required /></label>
+          <label>Address <input name="address" required /></label>
+          <label>City <input name="city" required /></label>
+
+          <div class="order-preview" id="orderPreview">
+            <!-- order items summary -->
+          </div>
+
+          <div class="checkout-actions">
+            <button type="button" id="paySim" class="btn primary">Place Order (simulate)</button>
+            <button type="button" id="cancelCheckout" class="btn">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
